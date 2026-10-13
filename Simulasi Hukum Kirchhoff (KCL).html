@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulasi Hukum Kirchhoff (KCL)</title>
+<style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    --bg: #f6f7f9; --card: #ffffff; --text: #1c2330; --muted: #5b6577;
+    --line: #d9dde5; --accent: #2563eb; --wire: #3b4558; --ok: #16803c; --okbg: #e3f5e9;
+    --bad: #b42318; --badbg: #fde8e6; --dot: #f59e0b; --dotneg: #e11d48;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151b; --card: #1b2029; --text: #e8ebf1; --muted: #9aa4b5;
+      --line: #2c3340; --accent: #6ea0ff; --wire: #8d97aa; --ok: #5fd38a; --okbg: #15301f;
+      --bad: #ff8a80; --badbg: #3a1b18; --dot: #fbbf24; --dotneg: #fb7185;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151b; --card: #1b2029; --text: #e8ebf1; --muted: #9aa4b5;
+    --line: #2c3340; --accent: #6ea0ff; --wire: #8d97aa; --ok: #5fd38a; --okbg: #15301f;
+    --bad: #ff8a80; --badbg: #3a1b18; --dot: #fbbf24; --dotneg: #fb7185;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *:before, *:after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 18px; font-size: .95rem; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 1rem; margin: 0 0 12px; }
+  svg { width: 100%; height: auto; display: block; }
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px 22px; }
+  .ctl label { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: 4px; }
+  .ctl output { font-variant-numeric: tabular-nums; font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: .8rem; }
+  .scroll { overflow-x: auto; }
+  .kcl { border-radius: 10px; padding: 12px 14px; font-weight: 600; }
+  .kcl.ok { background: var(--okbg); color: var(--ok); }
+  .kcl.bad { background: var(--badbg); color: var(--bad); }
+  .kcl small { display: block; font-weight: 400; color: var(--text); margin-top: 4px; }
+  .note { color: var(--muted); font-size: .85rem; margin-top: 10px; }
+  .btns { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+  button { font: inherit; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  .lbl { fill: var(--text); font-size: 14px; }
+  .lbls { fill: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Simulasi Hukum Kirchhoff Arus (KCL)</h1>
+  <p class="sub">Jumlah arus yang masuk ke sebuah node = jumlah arus yang keluar. Geser slider dan lihat arus mengalir.</p>
+
+  <div class="card">
+    <h2>Rangkaian</h2>
+    <svg viewBox="0 0 660 300" role="img" aria-label="Rangkaian 3 node dengan 4 resistor">
+      <!-- kabel -->
+      <g stroke="var(--wire)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M80 250 V150 H330 H580"/>
+        <path d="M80 150 V50 H580 V150"/>
+        <path d="M330 150 V250"/>
+        <path d="M80 250 H60 M330 250 H310"/>
+      </g>
+      <!-- ground -->
+      <g stroke="var(--wire)" stroke-width="3" stroke-linecap="round">
+        <path d="M80 250 V262 M66 262 H94 M71 269 H89 M76 276 H84"/>
+        <path d="M330 250 V262 M316 262 H344 M321 269 H339 M326 276 H334"/>
+      </g>
+      <text class="lbls" x="100" y="276">GND</text>
+      <!-- baterai -->
+      <rect x="62" y="186" width="36" height="34" fill="var(--card)" stroke="none"/>
+      <g stroke="var(--wire)" stroke-width="3" stroke-linecap="round">
+        <path d="M66 194 H94"/><path d="M72 206 H88"/>
+      </g>
+      <text class="lbl" x="104" y="202" id="vsLabel">Vs</text>
+      <!-- resistor -->
+      <g fill="var(--card)" stroke="var(--wire)" stroke-width="3">
+        <rect x="175" y="138" width="60" height="24" rx="4"/>
+        <rect x="425" y="138" width="60" height="24" rx="4"/>
+        <rect x="300" y="38" width="60" height="24" rx="4"/>
+        <rect x="318" y="180" width="24" height="44" rx="4"/>
+      </g>
+      <text class="lbl" x="205" y="155" text-anchor="middle">R1</text>
+      <text class="lbl" x="455" y="155" text-anchor="middle">R2</text>
+      <text class="lbl" x="330" y="55" text-anchor="middle">R3</text>
+      <text class="lbl" x="330" y="207" text-anchor="middle" style="dominant-baseline:middle" id="r4t"> </text>
+      <text class="lbl" x="354" y="206">R4</text>
+      <!-- nilai resistor -->
+      <text class="lbls" x="205" y="184" text-anchor="middle" id="tR1"></text>
+      <text class="lbls" x="455" y="184" text-anchor="middle" id="tR2"></text>
+      <text class="lbls" x="330" y="30" text-anchor="middle" id="tR3"></text>
+      <text class="lbls" x="354" y="222" id="tR4"></text>
+      <!-- node -->
+      <g fill="var(--accent)">
+        <circle cx="80" cy="150" r="7"/><circle cx="330" cy="150" r="7"/><circle cx="580" cy="150" r="7"/>
+      </g>
+      <text class="lbl" x="62" y="132" font-weight="700">Node1</text>
+      <text class="lbl" x="312" y="132" font-weight="700">Node2</text>
+      <text class="lbl" x="552" y="132" font-weight="700">Node3</text>
+      <text class="lbls" x="62" y="116" id="tV1"></text>
+      <text class="lbls" x="312" y="116" id="tV2"></text>
+      <text class="lbls" x="552" y="116" id="tV3"></text>
+      <!-- titik arus -->
+      <g id="dots"></g>
+    </svg>
+    <div class="note">Titik kuning bergerak sesuai arah arus acuan; titik merah muda berarti arus sebenarnya berlawanan dengan arah acuan (nilai negatif).</div>
+  </div>
+
+  <div class="card">
+    <h2>Parameter</h2>
+    <div class="controls" id="controls"></div>
+    <div class="btns">
+      <button id="reset">Reset ke nilai awal</button>
+      <button id="theme">Ganti tema</button>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Tegangan node</h2>
+      <table><thead><tr><th>Node</th><th>Tegangan (V)</th></tr></thead><tbody id="tbV"></tbody></table>
+      <h2 style="margin-top:16px">Arus cabang</h2>
+      <table><thead><tr><th>Cabang</th><th>Arah acuan</th><th>Arus (mA)</th></tr></thead><tbody id="tbI"></tbody></table>
+    </div>
+    <div class="card">
+      <h2>Pengecekan KCL di Node2</h2>
+      <div id="kcl2" class="kcl"></div>
+      <h2 style="margin-top:16px">Node lain</h2>
+      <div class="scroll"><table><thead><tr><th>Node</th><th>Masuk (mA)</th><th>Keluar (mA)</th></tr></thead><tbody id="tbK"></tbody></table></div>
+      <h2 style="margin-top:16px">Matriks konduktansi G (mS)</h2>
+      <div class="scroll"><table id="tbG"></table></div>
+      <div class="note">Node2 &amp; Node3 diselesaikan dari G<sub>reduksi</sub>·V = b, sedangkan V1 = Vs diketahui.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ---- Nilai awal ----
+  var DEFAULTS = { Vs: 12, R1: 100, R2: 200, R3: 300, R4: 400 };
+  var P = Object.assign({}, DEFAULTS);
+
+  // ---- Slider ----
+  var defs = [
+    { k: "Vs", label: "Vs (sumber di Node1)", min: 0, max: 24, step: 0.5, unit: "V" },
+    { k: "R1", label: "R1 (Node1–Node2)", min: 10, max: 1000, step: 10, unit: "Ω" },
+    { k: "R2", label: "R2 (Node2–Node3)", min: 10, max: 1000, step: 10, unit: "Ω" },
+    { k: "R3", label: "R3 (Node1–Node3)", min: 10, max: 1000, step: 10, unit: "Ω" },
+    { k: "R4", label: "R4 (Node2–Ground)", min: 10, max: 1000, step: 10, unit: "Ω" }
+  ];
+  var ctl = document.getElementById("controls");
+  var inputs = {}, outs = {};
+  defs.forEach(function (d) {
+    var div = document.createElement("div"); div.className = "ctl";
+    div.innerHTML = '<label for="s_' + d.k + '"><span>' + d.label + '</span><output id="o_' + d.k + '"></output></label>' +
+      '<input type="range" id="s_' + d.k + '" min="' + d.min + '" max="' + d.max + '" step="' + d.step + '" value="' + P[d.k] + '">';
+    ctl.appendChild(div);
+    inputs[d.k] = div.querySelector("input");
+    outs[d.k] = div.querySelector("output");
+    inputs[d.k].addEventListener("input", function () { P[d.k] = parseFloat(inputs[d.k].value); update(); });
+  });
+
+  // ---- Solver linear: eliminasi Gauss dengan pivoting (setara numpy.linalg.solve) ----
+  function solve(A, b) {
+    var n = b.length, M = A.map(function (r, i) { return r.concat([b[i]]); });
+    for (var c = 0; c < n; c++) {
+      var p = c;
+      for (var r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+      var t = M[c]; M[c] = M[p]; M[p] = t;
+      for (var r2 = c + 1; r2 < n; r2++) {
+        var f = M[r2][c] / M[c][c];
+        for (var k = c; k <= n; k++) M[r2][k] -= f * M[c][k];
+      }
+    }
+    var x = new Array(n);
+    for (var i = n - 1; i >= 0; i--) {
+      var s = M[i][n];
+      for (var j = i + 1; j < n; j++) s -= M[i][j] * x[j];
+      x[i] = s / M[i][i];
+    }
+    return x;
+  }
+
+  // ---- Titik arus animasi ----
+  var branches = {
+    I1: [[80,150],[330,150]],
+    I2: [[330,150],[580,150]],
+    I3: [[80,150],[80,50],[580,50],[580,150]],
+    I4: [[330,150],[330,250]],
+    Is: [[80,250],[80,150]]
+  };
+  var NS = "http://www.w3.org/2000/svg";
+  var dotsG = document.getElementById("dots");
+  var state = {};
+  Object.keys(branches).forEach(function (name) {
+    var pts = branches[name], segs = [], L = 0;
+    for (var i = 0; i < pts.length - 1; i++) {
+      var len = Math.hypot(pts[i+1][0]-pts[i][0], pts[i+1][1]-pts[i][1]);
+      segs.push({ a: pts[i], b: pts[i+1], len: len, start: L }); L += len;
+    }
+    var n = Math.max(3, Math.round(L / 40)), els = [];
+    for (var j = 0; j < n; j++) {
+      var c = document.createElementNS(NS, "circle"); c.setAttribute("r", 4.5); dotsG.appendChild(c); els.push(c);
+    }
+    state[name] = { segs: segs, L: L, els: els, phase: 0, speed: 0 };
+  });
+  function posAt(st, d) {
+    d = ((d % st.L) + st.L) % st.L;
+    for (var i = 0; i < st.segs.length; i++) {
+      var s = st.segs[i];
+      if (d <= s.start + s.len || i === st.segs.length - 1) {
+        var u = (d - s.start) / s.len;
+        return [s.a[0] + (s.b[0]-s.a[0]) * u, s.a[1] + (s.b[1]-s.a[1]) * u];
+      }
+    }
+  }
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(0.05, (now - last) / 1000); last = now;
+    Object.keys(state).forEach(function (name) {
+      var st = state[name];
+      st.phase += st.speed * dt;
+      var n = st.els.length;
+      for (var i = 0; i < n; i++) {
+        var p = posAt(st, st.phase + i * st.L / n);
+        st.els[i].setAttribute("cx", p[0].toFixed(1));
+        st.els[i].setAttribute("cy", p[1].toFixed(1));
+      }
+    });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  function setFlow(name, mA) {
+    var st = state[name], mag = Math.abs(mA);
+    st.speed = (mA < 0 ? -1 : 1) * Math.min(220, mag * 4);
+    st.els.forEach(function (e) {
+      e.setAttribute("fill", mA < 0 ? "var(--dotneg)" : "var(--dot)");
+      e.setAttribute("opacity", mag < 0.005 ? 0 : 1);
+    });
+  }
+
+  // ---- Format ----
+  function f(x, d) { return (Math.abs(x) < 5e-12 ? 0 : x).toFixed(d); }
+  function row(cells) { return "<tr>" + cells.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>"; }
+  function $(id) { return document.getElementById(id); }
+
+  // ---- Perhitungan utama ----
+  function update() {
+    defs.forEach(function (d) { outs[d.k].textContent = P[d.k] + " " + d.unit; });
+    var g1 = 1 / P.R1, g2 = 1 / P.R2, g3 = 1 / P.R3, g4 = 1 / P.R4;
+
+    // Matriks konduktansi lengkap (N1, N2, N3)
+    var G = [
+      [g1 + g3, -g1, -g3],
+      [-g1, g1 + g2 + g4, -g2],
+      [-g3, -g2, g2 + g3]
+    ];
+    // Reduksi: V1 = Vs diketahui -> persamaan KCL Node2 & Node3
+    var Gr = [[G[1][1], G[1][2]], [G[2][1], G[2][2]]];
+    var b = [-G[1][0] * P.Vs, -G[2][0] * P.Vs];
+    var v = solve(Gr, b);
+    var V1 = P.Vs, V2 = v[0], V3 = v[1];
+
+    // Arus cabang (mA)
+    var I1 = (V1 - V2) / P.R1 * 1000;
+    var I2 = (V2 - V3) / P.R2 * 1000;
+    var I3 = (V1 - V3) / P.R3 * 1000;
+    var I4 = V2 / P.R4 * 1000;
+    var Is = I1 + I3;
+
+    // Label di rangkaian
+    $("tV1").textContent = f(V1, 2) + " V";
+    $("tV2").textContent = f(V2, 2) + " V";
+    $("tV3").textContent = f(V3, 2) + " V";
+    $("vsLabel").textContent = "Vs = " + P.Vs + " V";
+    ["R1","R2","R3","R4"].forEach(function (k) { $("t" + k).textContent = P[k] + " Ω"; });
+
+    // Tabel tegangan & arus
+    $("tbV").innerHTML = row(["V1 (= Vs)", f(V1, 4)]) + row(["V2", f(V2, 4)]) + row(["V3", f(V3, 4)]);
+    $("tbI").innerHTML =
+      row(["I1", "N1 → N2", f(I1, 4)]) + row(["I2", "N2 → N3", f(I2, 4)]) +
+      row(["I3", "N1 → N3", f(I3, 4)]) + row(["I4", "N2 → GND", f(I4, 4)]);
+
+    // KCL Node2
+    var masuk = I1, keluar = I2 + I4, sel = masuk - keluar;
+    var ok = Math.abs(sel) < 1e-9;
+    var box = $("kcl2");
+    box.className = "kcl " + (ok ? "ok" : "bad");
+    box.innerHTML = (ok ? "KCL terpenuhi ✓" : "KCL tidak terpenuhi ✗") +
+      "<small>Masuk: I1 = " + f(masuk, 4) + " mA<br>Keluar: I2 + I4 = " + f(I2, 4) + " + " + f(I4, 4) + " = " + f(keluar, 4) + " mA<br>Selisih = " + sel.toExponential(2) + " mA</small>";
+
+    // KCL node lain (masuk positif / keluar positif berdasarkan tanda arus)
+    $("tbK").innerHTML =
+      row(["Node1", f(Is, 4) + " (dari Vs)", f(I1 + I3, 4) + " (I1 + I3)"]) +
+      row(["Node2", f(I1, 4) + " (I1)", f(I2 + I4, 4) + " (I2 + I4)"]) +
+      row(["Node3", f(I2 + I3, 4) + " (I2 + I3)", "0 (tidak ada jalur keluar)"]);
+
+    // Matriks G (mS)
+    var th = "<thead><tr><th></th><th>N1</th><th>N2</th><th>N3</th></tr></thead>";
+    $("tbG").innerHTML = th + "<tbody>" + G.map(function (r, i) {
+      return row(["N" + (i + 1)].concat(r.map(function (x) { return f(x * 1000, 3); })));
+    }).join("") + "</tbody>";
+
+    // Animasi
+    setFlow("I1", I1); setFlow("I2", I2); setFlow("I3", I3); setFlow("I4", I4); setFlow("Is", Is);
+  }
+
+  $("reset").addEventListener("click", function () {
+    P = Object.assign({}, DEFAULTS);
+    defs.forEach(function (d) { inputs[d.k].value = P[d.k]; });
+    update();
+  });
+  $("theme").addEventListener("click", function () {
+    var root = document.documentElement;
+    var dark = root.getAttribute("data-theme") === "dark" ||
+      (!root.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    root.setAttribute("data-theme", dark ? "light" : "dark");
+  });
+
+  update();
+})();
+</script>
+</body>
+</html>
